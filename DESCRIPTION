@@ -14,3 +14,5 @@ Imports:
     shiny,
     stringr,
     tidyr
+URL: https://github.com/loganjohnson0/PepViewR
+BugReports: https://github.com/loganjohnson0/PepViewR/issues
