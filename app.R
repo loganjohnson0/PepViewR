@@ -1,4 +1,3 @@
-library(shiny)
 library(bslib)
 library(ggplot2)
 library(dplyr)
@@ -7,19 +6,23 @@ library(plotly)
 library(tidyr)
 library(markdown)
 library(stringr)
+library(tibble)
+library(htmltools)
+library(shiny)
+
 
 purge_total_peptides <- readr::read_csv(
   file = "data/2025_03_28_Combined_Total_Peptides.csv"
 )
 
 purge_day01_total_peptides <- purge_total_peptides |>
-  filter(Time.Point == "Day01")
+  dplyr::filter(Time.Point == "Day01")
 
 purge_day07_total_peptides <- purge_total_peptides |>
-  filter(Time.Point == "Day07")
+  dplyr::filter(Time.Point == "Day07")
 
 purge_day14_total_peptides <- purge_total_peptides |>
-  filter(Time.Point == "Day14")
+  dplyr::filter(Time.Point == "Day14")
 
 fasta <- readr::read_csv(
   file = "data/2025-03-10_sus_scrofa_total_AA.csv"
@@ -27,10 +30,10 @@ fasta <- readr::read_csv(
 
 get_protein_data <- function(input, day, protein) {
   selected <- input |>
-    filter(str_detect(Protein.ID, protein))
+    dplyr::filter(stringr::str_detect(Protein.ID, protein))
 
   if (nrow(selected) == 0) {
-    selected <- tibble(
+    selected <- tibble::tibble(
       Protein.Description = "",
       Protein.ID = selected_protein,
       Peptide.Sequence = "",
@@ -44,10 +47,10 @@ get_protein_data <- function(input, day, protein) {
     return(selected)
   } else {
     selected <- selected |>
-      arrange(Protein.Description, Protein.Start, Protein.End) |>
-      left_join(y = fasta, by = "Protein.ID") |>
-      rowwise() |>
-      reframe(
+      dplyr::arrange(Protein.Description, Protein.Start, Protein.End) |>
+      dplyr::left_join(y = fasta, by = "Protein.ID") |>
+      dplyr::rowwise() |>
+      dplyr::reframe(
         Protein.Description = Protein.Description,
         Protein.ID = Protein.ID,
         Peptide.Sequence = Peptide.Sequence,
@@ -57,7 +60,7 @@ get_protein_data <- function(input, day, protein) {
         Total.AA = Total.AA,
         Peptide.Position = seq(Protein.Start, Protein.End)
       ) |>
-      mutate(Time.Point = paste0("Day", day))
+      dplyr::mutate(Time.Point = paste0("Day", day))
 
     return(selected)
   }
@@ -65,11 +68,11 @@ get_protein_data <- function(input, day, protein) {
 
 get_protein_fasta <- function(input, protein) {
   protein_fasta <- input |>
-    filter(Protein.ID == protein) |>
-    select(-Total.AA) |>
-    mutate(Sequence = str_split(Sequence, "")) |>
-    unnest(Sequence) |>
-    mutate(Protein.Position = row_number())
+    dplyr::filter(Protein.ID == protein) |>
+    dplyr::select(-Total.AA) |>
+    dplyr::mutate(Sequence = stringr::str_split(Sequence, "")) |>
+    tidyr::unnest(Sequence) |>
+    dplyr::mutate(Protein.Position = dplyr::row_number())
 }
 
 
@@ -78,7 +81,7 @@ ui <- bslib::page_fillable(
   theme = bslib::bs_theme(bg = "#FFF", fg = "#101010"),
   fillable_mobile = TRUE,
 
-  layout_sidebar(
+  bslib::layout_sidebar(
     border = TRUE,
     border_color = "#000000",
     bg = "#e1e1e1",
@@ -93,7 +96,7 @@ ui <- bslib::page_fillable(
       width = 350,
       tags$h2("Welcome!"),
       div(
-        HTML(
+        htmltools::HTML(
           "Start by selecting the protein you are interested in visualizing. You can scroll or type to search for a:
         <ul>
   <li>Protein's Name (Desmin)</li>
@@ -110,17 +113,17 @@ ui <- bslib::page_fillable(
         selected = NULL
       ),
       div(
-        HTML(
+        htmltools::HTML(
           'The <b><span style="color: red;">Red Dots</span></b> <i>above</i> the peptide indicate that is a Unique peptide.'
         )
       ),
       div(
-        HTML(
+        htmltools::HTML(
           'The <b><span style="color: black;">Black Dots</span></b> <i> above</i> the peptide indicate that is Not a Unique peptide.'
         )
       ),
       div(
-        HTML(
+        htmltools::HTML(
           "<h4>Note</h4> Not all possible proteins are present, thus if your protein of interest is not in the list, it was not identified in this experiment."
         )
       )
@@ -135,9 +138,9 @@ ui <- bslib::page_fillable(
 
 server <- function(input, output, session) {
   names <- purge_total_peptides |>
-    select(c(Protein.Description, Protein.ID, Gene)) |>
-    distinct(Protein.ID, .keep_all = TRUE) |>
-    arrange(Protein.Description)
+    dplyr::select(c(Protein.Description, Protein.ID, Gene)) |>
+    dplyr::distinct(Protein.ID, .keep_all = TRUE) |>
+    dplyr::arrange(Protein.Description)
 
   shiny::updateSelectizeInput(
     session,
@@ -158,7 +161,7 @@ server <- function(input, output, session) {
     )
   )
 
-  combine_day <- reactive({
+  combine_day <- shiny::reactive({
     req(input$sel_protein)
 
     selected_protein <- input$sel_protein |>
@@ -188,7 +191,7 @@ server <- function(input, output, session) {
     bind_rows(day01, day07, day14)
   })
 
-  selected_fasta <- reactive({
+  selected_fasta <- shiny::reactive({
     req(input$sel_protein)
 
     selected_protein <- input$sel_protein |>
