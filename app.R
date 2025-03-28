@@ -210,12 +210,24 @@ server <- function(input, output, session) {
       scale_y_continuous(limits = c(-0.5, 1)) +
 
       geom_segment(
-        data = combine_day(),
+        data = combine_day() |>
+          distinct(
+            Peptide.Sequence,
+            Protein.Start,
+            Time.Point,
+            .keep_all = TRUE
+          ),
         aes(x = Peptide.Position, y = 0, xend = Peptide.Position, yend = 0.1)
       ) +
 
       geom_point(
-        data = combine_day(),
+        data = combine_day() |>
+          distinct(
+            Peptide.Sequence,
+            Protein.Start,
+            Time.Point,
+            .keep_all = TRUE
+          ),
         aes(
           x = Peptide.Position,
           y = 0.1,
