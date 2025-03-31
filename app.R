@@ -332,6 +332,20 @@ server <- function(input, output, session) {
       ) +
 
       scale_color_identity() +
+      facet_wrap(
+        ~ factor(
+          Time.Point,
+          levels = c("Day01", "Day07", "Day14"),
+          labels = c(
+            "Day 1 Postmortem",
+            "Day 7 Postmortem",
+            "Day 14 Postmortem"
+          )
+        ),
+        ncol = 1,
+        axes = "all",
+        axis.labels = "all_x"
+      ) +
 
       theme(
         panel.background = element_blank(),
@@ -340,10 +354,9 @@ server <- function(input, output, session) {
         axis.text.y = element_blank(),
         axis.title.y = element_blank(),
         legend.position = "none",
-        strip.background = element_rect(fill = "#aaaaaa"),
-        strip.placement = "outside"
+        strip.background = element_rect(colour = "#000000", linewidth = 1)
       ) +
-      facet_wrap(~Time.Point, ncol = 1, axes = "all", axis.labels = "all_x") +
+
       ggtitle(label = input$sel_protein) +
 
       labs(x = "Amino Acid Residue Position (N- to C-Term)")
