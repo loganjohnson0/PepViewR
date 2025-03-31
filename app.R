@@ -32,16 +32,16 @@ get_protein_data <- function(input, day, protein) {
   selected <- input |>
     dplyr::filter(stringr::str_detect(Protein.ID, protein))
 
-  if (nrow(selected) == 0) {
+  if (length(selected$Protein.ID) < 1) {
     selected <- tibble::tibble(
       Protein.Description = "",
-      Protein.ID = selected_protein,
+      Protein.ID = protein,
       Peptide.Sequence = "",
       Protein.Start = 0,
       Protein.End = 1,
       Is.Unique = is.logical("FALSE"),
-      Total.AA = 0,
-      Peptide.Position = 0,
+      Total.AA = as.numeric(""),
+      Peptide.Position = as.numeric(""),
       Time.Point = paste0("Day", day)
     )
     return(selected)
@@ -196,7 +196,7 @@ server <- function(input, output, session) {
   names <- purge_total_peptides |>
     dplyr::select(c(Protein.Description, Protein.ID, Gene)) |>
     dplyr::distinct(Protein.ID, .keep_all = TRUE) |>
-    dplyr::arrange(Protein.Description)
+    dplyr::arrange(Protein.Description, Gene)
 
   shiny::updateSelectizeInput(
     session,
@@ -220,17 +220,20 @@ server <- function(input, output, session) {
   selected_fasta <- shiny::reactive({
     req(input$sel_protein)
 
-    selected_protein <- input$sel_protein |>
-      stringr::str_extract(pattern = "(?<=: )\\w+$")
-
+    selected_protein <- stringr::str_extract(
+      input$sel_protein,
+      pattern = "(?<=: )\\w+$"
+    )
     get_protein_fasta(fasta, protein = selected_protein)
   })
 
   combine_day <- shiny::reactive({
     req(input$sel_protein)
 
-    selected_protein <- input$sel_protein |>
-      stringr::str_extract(pattern = "(?<=: )\\w+$")
+    selected_protein <- stringr::str_extract(
+      input$sel_protein,
+      pattern = "(?<=: )\\w+$"
+    )
 
     day01 <- get_protein_data(
       input = purge_day01_total_peptides,
