@@ -1,7 +1,7 @@
 library(bslib)
 library(ggplot2)
 library(dplyr)
-library(readr)
+library(nanoparquet)
 library(plotly)
 library(tidyr)
 library(markdown)
@@ -11,8 +11,11 @@ library(htmltools)
 library(shiny)
 
 
-purge_total_peptides <- readr::read_csv(
-  file = "data/2025_03_28_Combined_Total_Peptides.csv"
+purge_total_peptides <- nanoparquet::read_parquet(
+  file = "data/2025_03_31_Purge_Combined_Total_Peptides.parquet"
+)
+sarco_total_peptides <- nanoparquet::read_parquet(
+  file = "data/2025_03_31_Sarco_Combined_Total_Peptides.parquet"
 )
 
 purge_day01_total_peptides <- purge_total_peptides |>
@@ -24,8 +27,8 @@ purge_day07_total_peptides <- purge_total_peptides |>
 purge_day14_total_peptides <- purge_total_peptides |>
   dplyr::filter(Time.Point == "Day14")
 
-fasta <- readr::read_csv(
-  file = "data/2025-03-10_sus_scrofa_total_AA.csv"
+fasta <- nanoparquet::read_parquet(
+  file = "data/2025-03-31_Sus_Scrofa_Total_fasta.parquet"
 )
 
 get_protein_data <- function(input, day, protein) {
@@ -120,20 +123,19 @@ ui <- bslib::page_fillable(
     fg = "#101010",
     primary = "#e30000"
   ),
+  fillable_mobile = TRUE,
 
+  # fmt: skip
   tags$style(HTML(
-    '
-  .box {
+    '.box {
   display: flex;
   align-items: center;
   justify-content: center;
   align-content: center;
-  }
-'
-  )),
+  }')),
 
-  fillable_mobile = TRUE,
   navset_card_tab(
+    # Start of Welcome
     nav_panel(
       class = ".box",
       h5("Welcome"),
@@ -145,20 +147,27 @@ ui <- bslib::page_fillable(
       I was also thinking of including some images of either sarco vs. purge in how the experiment was conducted."
       )
     ),
+    #####
+    #
+    # Start of Protein Fraction
+    #
+    #####
     nav_panel(
-      class = ".box",
       h5("Protein Fraction"),
-
+      class = ".box",
       bslib::layout_sidebar(
         sidebar = share_sidebar,
         navset_card_underline(
+          # Start of Protein Fraction - Purge
           nav_panel(
             "Purge",
             card(
-              plotly::plotlyOutput("main_plot"),
+              plotly::plotlyOutput("frac_purge"),
               max_height = 800
             )
           ),
+
+          # Start of Protein Fraction - Sarcoplasmic
           nav_panel(
             "Sarcoplasmic",
             card("Space filler text for now until later.", max_height = 800)
@@ -166,21 +175,30 @@ ui <- bslib::page_fillable(
         )
       )
     ),
+    #####
+    #
+    # Start of Time Point
+    #
+    #####
     nav_panel(
-      class = ".box",
       h5("Time Point"),
-
+      class = ".box",
       bslib::layout_sidebar(
         sidebar = share_sidebar,
         navset_card_underline(
+          # Start of Time Point - Day 1
           nav_panel(
             "Day 1",
             card("Filler", max_height = 800)
           ),
+
+          # Start of Time Point - Day 7
           nav_panel(
             "Day 7",
             card("Space filler text for now until later.", max_height = 800)
           ),
+
+          # Start of Time Point - Day 14
           nav_panel(
             "Day 14",
             card("Space filler text for now until later.", max_height = 800)
@@ -189,6 +207,12 @@ ui <- bslib::page_fillable(
       )
     ),
     nav_spacer(),
+
+    #####
+    #
+    # Start of About
+    #
+    #####
     nav_panel(
       class = ".box",
       h5("About"),
@@ -264,7 +288,7 @@ server <- function(input, output, session) {
     bind_rows(day01, day07, day14)
   })
 
-  output$main_plot <- plotly::renderPlotly({
+  output$frac_purge <- plotly::renderPlotly({
     req(input$sel_protein)
 
     p <- ggplot(data = combine_day(), aes(x = Peptide.Position, y = 0)) +
