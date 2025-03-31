@@ -137,7 +137,13 @@ ui <- bslib::page_fillable(
     nav_panel(
       class = ".box",
       h5("Welcome"),
-      card("This is where text goes")
+      card(
+        "My idea was to have some sort of an introduction here.
+      
+      Maybe this would include some links to review papers.
+      
+      I was also thinking of including some images of either sarco vs. purge in how the experiment was conducted."
+      )
     ),
     nav_panel(
       class = ".box",
@@ -186,7 +192,11 @@ ui <- bslib::page_fillable(
     nav_panel(
       class = ".box",
       h5("About"),
-      card("Learn More Here")
+      card(
+        "Learn More Here.
+      
+      Was thinking this could be an 'about the authors' type of page and some info about the Lonergan Lab, etc."
+      )
     )
   )
 )
