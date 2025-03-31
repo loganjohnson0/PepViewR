@@ -41,7 +41,7 @@ get_protein_data <- function(input, day, protein) {
       Protein.End = 1,
       Is.Unique = is.logical("FALSE"),
       Total.AA = 0,
-      AA.Position = 0,
+      Peptide.Position = 0,
       Time.Point = paste0("Day", day)
     )
     return(selected)
@@ -68,7 +68,7 @@ get_protein_data <- function(input, day, protein) {
 
 get_protein_fasta <- function(input, protein) {
   protein_fasta <- input |>
-    dplyr::filter(Protein.ID == protein) |>
+    dplyr::filter(stringr::str_detect(Protein.ID, protein)) |>
     dplyr::select(-Total.AA) |>
     dplyr::mutate(Sequence = stringr::str_split(Sequence, "")) |>
     tidyr::unnest(Sequence) |>
@@ -108,18 +108,18 @@ ui <- bslib::page_fillable(
       ),
       shiny::selectInput(
         inputId = "sel_protein",
-        label = "Protein Name, Gene, or ID",
+        label = "Protein Name, Gene, or UniPrID",
         choices = NULL,
         selected = NULL
       ),
       div(
         htmltools::HTML(
-          'The <b><span style="color: red;">Red Dots</span></b> <i>above</i> the peptide indicate that is a Unique peptide.'
+          'The <b><span style="color: red;">Red Dots</span></b> <i>above</i> the peptide indicate the start of a Unique tryptic peptide.'
         )
       ),
       div(
         htmltools::HTML(
-          'The <b><span style="color: black;">Black Dots</span></b> <i> above</i> the peptide indicate that is Not a Unique peptide.'
+          'The <b><span style="color: black;">Black Dots</span></b> <i> above</i> the peptide indicate the start of a Non-Unique tryptic peptide.'
         )
       ),
       div(
@@ -161,15 +161,28 @@ server <- function(input, output, session) {
     )
   )
 
+  selected_fasta <- shiny::reactive({
+    req(input$sel_protein)
+
+    selected_protein <- input$sel_protein |>
+      stringr::str_extract(pattern = "(?<=: )\\w+$")
+
+    get_protein_fasta(fasta, protein = selected_protein)
+  })
+
   combine_day <- shiny::reactive({
     req(input$sel_protein)
 
     selected_protein <- input$sel_protein |>
       stringr::str_extract(pattern = "(?<=: )\\w+$")
 
-    selected_fasta <- get_protein_fasta(
-      input = fasta,
-      protein = selected_protein
+    validate(
+      need(
+        try(
+          selected_protein %in% purge_total_peptides$Protein.ID
+        ),
+        "Error: Sorry try a different protein."
+      )
     )
 
     day01 <- get_protein_data(
@@ -191,20 +204,14 @@ server <- function(input, output, session) {
     bind_rows(day01, day07, day14)
   })
 
-  selected_fasta <- shiny::reactive({
-    req(input$sel_protein)
-
-    selected_protein <- input$sel_protein |>
-      stringr::str_extract(pattern = "(?<=: )\\w+$")
-
-    get_protein_fasta(fasta, protein = selected_protein)
-  })
-
   output$main_plot <- plotly::renderPlotly({
     req(input$sel_protein)
+
     p <- ggplot(data = combine_day(), aes(x = Peptide.Position, y = 0)) +
 
-      geom_point() +
+      geom_point(aes(
+        text = paste0("<b>Identified Peptide</b>: ", Peptide.Sequence)
+      )) +
 
       scale_x_continuous(limits = c(0, max(combine_day()$Total.AA))) +
       scale_y_continuous(limits = c(-0.5, 1)) +
@@ -217,7 +224,12 @@ server <- function(input, output, session) {
             Time.Point,
             .keep_all = TRUE
           ),
-        aes(x = Peptide.Position, y = 0, xend = Peptide.Position, yend = 0.1)
+        aes(
+          x = Peptide.Position,
+          y = 0,
+          xend = Peptide.Position,
+          yend = 0.1
+        )
       ) +
 
       geom_point(
@@ -231,35 +243,11 @@ server <- function(input, output, session) {
         aes(
           x = Peptide.Position,
           y = 0.1,
-          text = paste0("<b>Identified Peptide</b>: ", Peptide.Sequence),
           color = if_else(Is.Unique == "TRUE", "#ff0000", "#000000")
         )
       ) +
 
       scale_color_identity() +
-
-      geom_text(
-        data = selected_fasta(),
-        aes(
-          x = Protein.Position,
-          y = -0.3,
-          label = Sequence,
-          text = paste0("<b>Residue</b>: ", Sequence)
-        ),
-        family = "Courier",
-        size = 3
-      ) +
-      geom_text(
-        data = selected_fasta(),
-        aes(
-          x = Protein.Position,
-          y = -0.5,
-          label = Protein.Position,
-          text = paste0("<b>Protein Position</b>: ", Protein.Position)
-        ),
-        family = "Courier",
-        size = 3
-      ) +
 
       theme(
         panel.background = element_blank(),
@@ -272,23 +260,74 @@ server <- function(input, output, session) {
         strip.placement = "outside"
       ) +
       facet_wrap(~Time.Point, ncol = 1, axes = "all", axis.labels = "all_x") +
-      ggtitle(
-        label = input$sel_protein
-      ) +
+      ggtitle(label = input$sel_protein) +
 
-      labs(x = "Amino Acid Residue Position (C- to N-Term)")
+      labs(x = "Amino Acid Residue Position (N- to C-Term)")
 
-    plotly::ggplotly(p, tooltip = c("text")) |>
-      plotly::layout(
-        hovermode = "x unified",
-        xaxis = list(
-          showspikes = TRUE,
-          spikemode = "across",
-          spikesnap = "cursor",
-          spikethickness = 2,
-          spikedash = "solid"
+    if (length(selected_fasta()$Protein.Position) < 2500) {
+      p <- p +
+        geom_text(
+          data = selected_fasta(),
+          aes(
+            x = Protein.Position,
+            y = -0.5,
+            label = Protein.Position,
+            text = paste0("<b>Protein Position</b>: ", Protein.Position)
+          ),
+          family = "Courier",
+          size = 3
+        ) +
+        geom_text(
+          data = selected_fasta(),
+          aes(
+            x = Protein.Position,
+            y = -0.3,
+            label = Sequence,
+            text = paste0("<b>Residue</b>: ", Sequence)
+          ),
+          family = "Courier",
+          size = 3
         )
-      )
+
+      plotly::ggplotly(p, tooltip = c("text")) |>
+        plotly::style(hoverinfo = "none", traces = c(4:9)) |>
+        plotly::layout(
+          hovermode = "x unified",
+          xaxis = list(
+            showspikes = TRUE,
+            spikemode = "across",
+            spikesnap = "cursor",
+            spikethickness = 2,
+            spikedash = "solid"
+          )
+        )
+    } else {
+      p <- p +
+        geom_text(
+          data = combine_day(),
+          aes(
+            x = Peptide.Position,
+            y = -0.5,
+            label = Peptide.Position,
+            text = paste0("<b>Protein Position</b>: ", Peptide.Position)
+          ),
+          family = "Courier",
+          size = 3
+        )
+
+      plotly::ggplotly(p, tooltip = c("text")) |>
+        plotly::style(hoverinfo = "none", traces = c(4:12)) |>
+        plotly::layout(
+          hovermode = "x unified",
+          xaxis = list(
+            showspikes = TRUE,
+            spikemode = "across",
+            spikesnap = "cursor",
+            spikethickness = 2,
+            spikedash = "solid"
+          )
+        )
+    }
   })
 }
 
