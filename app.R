@@ -120,15 +120,32 @@ ui <- bslib::page_fillable(
     fg = "#101010",
     primary = "#e30000"
   ),
+
+  tags$style(HTML(
+    '
+  .box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-content: center;
+  }
+'
+  )),
+
   fillable_mobile = TRUE,
   navset_card_tab(
-    nav_panel(h4("Welcome"), card("This is where text goes")),
     nav_panel(
-      h4("Protein Fraction"),
+      class = ".box",
+      h5("Welcome"),
+      card("This is where text goes")
+    ),
+    nav_panel(
+      class = ".box",
+      h5("Protein Fraction"),
 
       bslib::layout_sidebar(
         sidebar = share_sidebar,
-        navset_card_tab(
+        navset_card_underline(
           nav_panel(
             "Purge",
             card(
@@ -144,17 +161,15 @@ ui <- bslib::page_fillable(
       )
     ),
     nav_panel(
-      h4("Time Point"),
+      class = ".box",
+      h5("Time Point"),
 
       bslib::layout_sidebar(
         sidebar = share_sidebar,
-        navset_card_tab(
+        navset_card_underline(
           nav_panel(
             "Day 1",
-            card(
-              "Filler",
-              max_height = 800
-            )
+            card("Filler", max_height = 800)
           ),
           nav_panel(
             "Day 7",
@@ -166,6 +181,12 @@ ui <- bslib::page_fillable(
           )
         )
       )
+    ),
+    nav_spacer(),
+    nav_panel(
+      class = ".box",
+      h5("About"),
+      card("Learn More Here")
     )
   )
 )
