@@ -75,64 +75,99 @@ get_protein_fasta <- function(input, protein) {
     dplyr::mutate(Protein.Position = dplyr::row_number())
 }
 
+share_sidebar <- sidebar(
+  width = 300,
+  div(
+    htmltools::HTML(
+      "Start by selecting the protein you are interested in visualizing. You can scroll or type to search for a:
+<ul>
+<li>Protein's Name (Desmin)</li>
+<li>Protein's Gene Product (DES)</li> or
+<li>Protein's UniProt ID (P02540)</li>
+</ul>"
+    ),
+    style = "display: inline;"
+  ),
+  shiny::selectInput(
+    inputId = "sel_protein",
+    label = "Protein Name, Gene, or UniProtID",
+    choices = NULL,
+    selected = NULL
+  ),
+  div(
+    htmltools::HTML(
+      'The <b><span style="color: red;">Red Dots</span></b> <i>above</i> the peptide indicate the start of a Unique tryptic peptide.'
+    )
+  ),
+  div(
+    htmltools::HTML(
+      'The <b><span style="color: black;">Black Dots</span></b> <i> above</i> the peptide indicate the start of a Non-Unique tryptic peptide.'
+    )
+  ),
+  div(
+    htmltools::HTML(
+      "<h4>Note</h4> Not all possible proteins are present, thus if your protein of interest is not in the list, it was not identified in this experiment."
+    )
+  )
+)
+
 
 ui <- bslib::page_fillable(
-  h1("Pork Proteomic Results"),
-  theme = bslib::bs_theme(bg = "#FFF", fg = "#101010"),
-  fillable_mobile = TRUE,
-
-  bslib::layout_sidebar(
-    border = TRUE,
-    border_color = "#000000",
-    bg = "#e1e1e1",
+  titlePanel("PepViewR: Visualization of Proteomic Data"),
+  theme = bslib::bs_theme(
+    version = 5,
+    bg = "#ffffff",
     fg = "#101010",
-    div(
-      HTML(
-        "These data illustrate the identification of specific tryptic peptides in the <b>Purge</b> or <b>Muscle Exudate</b> of fresh pork loins aged for either 1, 7, or 14 days postmortem."
-      ),
-      style = "display: inline;"
-    ),
-    sidebar = sidebar(
-      width = 350,
-      tags$h2("Welcome!"),
-      div(
-        htmltools::HTML(
-          "Start by selecting the protein you are interested in visualizing. You can scroll or type to search for a:
-        <ul>
-  <li>Protein's Name (Desmin)</li>
-  <li>Protein's Gene Product (DES)</li> or
-  <li>Protein's UniProt ID (P02540)</li>
-</ul>"
-        ),
-        style = "display: inline;"
-      ),
-      shiny::selectInput(
-        inputId = "sel_protein",
-        label = "Protein Name, Gene, or UniPrID",
-        choices = NULL,
-        selected = NULL
-      ),
-      div(
-        htmltools::HTML(
-          'The <b><span style="color: red;">Red Dots</span></b> <i>above</i> the peptide indicate the start of a Unique tryptic peptide.'
-        )
-      ),
-      div(
-        htmltools::HTML(
-          'The <b><span style="color: black;">Black Dots</span></b> <i> above</i> the peptide indicate the start of a Non-Unique tryptic peptide.'
-        )
-      ),
-      div(
-        htmltools::HTML(
-          "<h4>Note</h4> Not all possible proteins are present, thus if your protein of interest is not in the list, it was not identified in this experiment."
+    primary = "#e30000"
+  ),
+  fillable_mobile = TRUE,
+  navset_card_tab(
+    nav_panel(h4("Welcome"), card("This is where text goes")),
+    nav_panel(
+      h4("Protein Fraction"),
+
+      bslib::layout_sidebar(
+        sidebar = share_sidebar,
+        navset_card_tab(
+          nav_panel(
+            "Purge",
+            card(
+              plotly::plotlyOutput("main_plot"),
+              max_height = 800
+            )
+          ),
+          nav_panel(
+            "Sarcoplasmic",
+            card("Space filler text for now until later.", max_height = 800)
+          )
         )
       )
     ),
-    card(
-      plotly::plotlyOutput("main_plot"),
-      max_height = 800
+    nav_panel(
+      h4("Time Point"),
+
+      bslib::layout_sidebar(
+        sidebar = share_sidebar,
+        navset_card_tab(
+          nav_panel(
+            "Day 1",
+            card(
+              "Filler",
+              max_height = 800
+            )
+          ),
+          nav_panel(
+            "Day 7",
+            card("Space filler text for now until later.", max_height = 800)
+          ),
+          nav_panel(
+            "Day 14",
+            card("Space filler text for now until later.", max_height = 800)
+          )
+        )
+      )
     )
-  ),
+  )
 )
 
 
@@ -175,15 +210,6 @@ server <- function(input, output, session) {
 
     selected_protein <- input$sel_protein |>
       stringr::str_extract(pattern = "(?<=: )\\w+$")
-
-    validate(
-      need(
-        try(
-          selected_protein %in% purge_total_peptides$Protein.ID
-        ),
-        "Error: Sorry try a different protein."
-      )
-    )
 
     day01 <- get_protein_data(
       input = purge_day01_total_peptides,
