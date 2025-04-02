@@ -162,6 +162,7 @@ ui <- bslib::page_fillable(
           nav_panel(
             "Purge",
             card(
+              uiOutput("text"),
               plotly::plotlyOutput("frac_purge"),
               max_height = 800
             )
@@ -286,6 +287,25 @@ server <- function(input, output, session) {
     )
 
     bind_rows(day01, day07, day14)
+  })
+
+  output$text <- renderUI({
+    req(input$sel_protein)
+
+    if (grepl("020931560", input$sel_protein)) {
+      return(NULL)
+    } else {
+      uni_id <- sub(".*: (\\w+)$", "\\1", input$sel_protein)
+
+      tags$div(
+        sytle = "display: inline-block",
+        tags$a(
+          href = paste0("https://www.uniprot.org/uniprotkb/", uni_id, "/entry"),
+          paste0("Visit UniProt for ", uni_id),
+          target = "_blank"
+        )
+      )
+    }
   })
 
   output$frac_purge <- plotly::renderPlotly({
