@@ -14,22 +14,24 @@ sarco_total_peptides <- nanoparquet::read_parquet(
   file = "data/2025_03_31_Sarco_Combined_Total_Peptides.parquet"
 )
 
-purge_day01_total_peptides <- purge_total_peptides |>
-  dplyr::filter(Time.Point == "Day01")
-
-purge_day07_total_peptides <- purge_total_peptides |>
-  dplyr::filter(Time.Point == "Day07")
-
-purge_day14_total_peptides <- purge_total_peptides |>
-  dplyr::filter(Time.Point == "Day14")
+all_total_peptides <- rbind(sarco_total_peptides, purge_total_peptides)
 
 fasta <- nanoparquet::read_parquet(
   file = "data/2025-03-31_Sus_Scrofa_Total_fasta.parquet"
 )
 
-get_protein_data <- function(input, day, protein) {
+names <- all_total_peptides |>
+  dplyr::select(c(Protein.Description, Protein.ID, Gene)) |>
+  dplyr::distinct(Protein.ID, .keep_all = TRUE) |>
+  dplyr::arrange(Gene, Protein.Description)
+
+get_protein_data <- function(input, day, fraction, protein) {
   selected <- input |>
-    dplyr::filter(stringr::str_detect(Protein.ID, protein))
+    dplyr::filter(
+      stringr::str_detect(Protein.ID, protein),
+      Fraction == fraction,
+      stringr::str_detect(Time.Point, day)
+    )
 
   if (length(selected$Protein.ID) < 1) {
     selected <- data.frame(
@@ -41,6 +43,7 @@ get_protein_data <- function(input, day, protein) {
       Is.Unique = is.logical("FALSE"),
       Total.AA = as.numeric(""),
       Peptide.Position = as.numeric(""),
+      Fraction = fraction,
       Time.Point = paste0("Day", day)
     )
     return(selected)
@@ -57,7 +60,8 @@ get_protein_data <- function(input, day, protein) {
         Protein.End = Protein.End,
         Is.Unique = Is.Unique,
         Total.AA = Total.AA,
-        Peptide.Position = seq(Protein.Start, Protein.End)
+        Peptide.Position = seq(Protein.Start, Protein.End),
+        Fraction = fraction
       ) |>
       dplyr::mutate(Time.Point = paste0("Day", day))
 
@@ -224,11 +228,6 @@ ui <- bslib::page_fillable(
 
 
 server <- function(input, output, session) {
-  names <- purge_total_peptides |>
-    dplyr::select(c(Protein.Description, Protein.ID, Gene)) |>
-    dplyr::distinct(Protein.ID, .keep_all = TRUE) |>
-    dplyr::arrange(Protein.Description, Gene)
-
   shiny::updateSelectizeInput(
     session,
     inputId = "sel_protein",
@@ -267,18 +266,21 @@ server <- function(input, output, session) {
     )
 
     day01 <- get_protein_data(
-      input = purge_day01_total_peptides,
+      input = all_total_peptides,
       day = "01",
+      fraction = "Purge",
       protein = selected_protein
     )
     day07 <- get_protein_data(
-      input = purge_day07_total_peptides,
+      input = all_total_peptides,
       day = "07",
+      fraction = "Purge",
       protein = selected_protein
     )
     day14 <- get_protein_data(
-      input = purge_day14_total_peptides,
+      input = all_total_peptides,
       day = "14",
+      fraction = "Purge",
       protein = selected_protein
     )
 
