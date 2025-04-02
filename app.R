@@ -6,22 +6,16 @@ library(plotly)
 library(tidyr)
 library(shiny)
 
-# TO DO:
-# 1. Need to get the different tabs working....I thought I had that figured out.
-# 2. Add details to welcome page
-# 3. Add details to about page
-
+# Read in your data
 purge_total_peptides <- nanoparquet::read_parquet(
-  file = "data/2025_03_31_Purge_Combined_Total_Peptides.parquet"
+  "data/2025_03_31_Purge_Combined_Total_Peptides.parquet"
 )
 sarco_total_peptides <- nanoparquet::read_parquet(
-  file = "data/2025_03_31_Sarco_Combined_Total_Peptides.parquet"
+  "data/2025_03_31_Sarco_Combined_Total_Peptides.parquet"
 )
-
 all_total_peptides <- rbind(sarco_total_peptides, purge_total_peptides)
-
 fasta <- nanoparquet::read_parquet(
-  file = "data/2025-03-31_Sus_Scrofa_Total_fasta.parquet"
+  "data/2025-03-31_Sus_Scrofa_Total_fasta.parquet"
 )
 
 names <- all_total_peptides |>
@@ -29,6 +23,7 @@ names <- all_total_peptides |>
   dplyr::distinct(Protein.ID, .keep_all = TRUE) |>
   dplyr::arrange(Gene, Protein.Description)
 
+# Functions to filter data and get FASTA
 get_protein_data <- function(input, day, fraction, protein) {
   selected <- input |>
     dplyr::filter(
@@ -37,16 +32,17 @@ get_protein_data <- function(input, day, fraction, protein) {
       stringr::str_detect(Time.Point, day)
     )
 
-  if (length(selected$Protein.ID) < 1) {
+  if (nrow(selected) < 1) {
+    # Return a dummy data.frame if nothing is found
     selected <- data.frame(
       Protein.Description = "",
       Protein.ID = protein,
       Peptide.Sequence = "",
       Protein.Start = 0,
       Protein.End = 1,
-      Is.Unique = is.logical("FALSE"),
-      Total.AA = as.numeric(""),
-      Peptide.Position = as.numeric(""),
+      Is.Unique = FALSE,
+      Total.AA = as.numeric(NA),
+      Peptide.Position = as.numeric(NA),
       Fraction = fraction,
       Time.Point = paste0("Day", day)
     )
@@ -68,13 +64,12 @@ get_protein_data <- function(input, day, fraction, protein) {
         Fraction = fraction
       ) |>
       dplyr::mutate(Time.Point = paste0("Day", day))
-
     return(selected)
   }
 }
 
 get_protein_fasta <- function(input, protein) {
-  protein_fasta <- input |>
+  input |>
     dplyr::filter(stringr::str_detect(Protein.ID, protein)) |>
     dplyr::select(-Total.AA) |>
     dplyr::mutate(Sequence = stringr::str_split(Sequence, "")) |>
@@ -82,6 +77,7 @@ get_protein_fasta <- function(input, protein) {
     dplyr::mutate(Protein.Position = dplyr::row_number())
 }
 
+# Shared sidebar remains unchanged
 share_sidebar <- sidebar(
   width = 300,
   div(
@@ -89,7 +85,7 @@ share_sidebar <- sidebar(
       "Start by selecting the protein you are interested in visualizing. You can scroll or type to search for a:
 <ul>
 <li>Protein's Name (Desmin)</li>
-<li>Protein's Gene Product (DES)</li> or
+<li>Protein's Gene Product (DES)</li>
 <li>Protein's UniProt ID (P02540)</li>
 </ul>"
     ),
@@ -103,21 +99,20 @@ share_sidebar <- sidebar(
   ),
   div(
     htmltools::HTML(
-      'The <b><span style="color: red;">Red Dots</span></b> <i>above</i> the peptide indicate the start of a Unique tryptic peptide.'
+      'The <b><span style="color: red;">Red Dots</span></b> indicate the start of a Unique tryptic peptide.'
     )
   ),
   div(
     htmltools::HTML(
-      'The <b><span style="color: black;">Black Dots</span></b> <i> above</i> the peptide indicate the start of a Non-Unique tryptic peptide.'
+      'The <b><span style="color: black;">Black Dots</span></b> indicate the start of a Non-Unique tryptic peptide.'
     )
   ),
   div(
     htmltools::HTML(
-      "<h4>Note</h4> Not all possible proteins are present, thus if your protein of interest is not in the list, it was not identified in this experiment."
+      "<h4>Note</h4> Not all proteins are present; if your protein is missing, it was not identified in this experiment."
     )
   )
 )
-
 
 ui <- bslib::page_fillable(
   titlePanel("PepViewR: Visualization of Proteomic Data"),
@@ -128,41 +123,29 @@ ui <- bslib::page_fillable(
     primary = "#e30000"
   ),
   fillable_mobile = TRUE,
-
-  # fmt: skip
   tags$style(HTML(
     '.box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  align-content: center;
-  }')),
-
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        align-content: center;
+      }'
+  )),
   navset_card_tab(
-    # Start of Welcome
+    # Welcome Tab
     nav_panel(
       class = ".box",
       h5("Welcome"),
-      card(
-        "My idea was to have some sort of an introduction here.
-      
-      Maybe this would include some links to review papers.
-      
-      I was also thinking of including some images of either sarco vs. purge in how the experiment was conducted."
-      )
+      card("Introduction and links can go here.")
     ),
-    #####
-    #
-    # Start of Protein Fraction
-    #
-    #####
+    # Protein Fraction Tab
     nav_panel(
       h5("Protein Fraction"),
-      class = ".box",
       bslib::layout_sidebar(
         sidebar = share_sidebar,
+        # IMPORTANT: Add an id to capture the selected sub-tab
         navset_card_underline(
-          # Start of Protein Fraction - Purge
+          id = "fraction_tab",
           nav_panel(
             "Purge",
             card(
@@ -171,8 +154,6 @@ ui <- bslib::page_fillable(
               max_height = 800
             )
           ),
-
-          # Start of Protein Fraction - Sarcoplasmic
           nav_panel(
             "Sarcoplasmic",
             card(
@@ -184,58 +165,31 @@ ui <- bslib::page_fillable(
         )
       )
     ),
-    #####
-    #
-    # Start of Time Point
-    #
-    #####
+    # Time Point Tab (placeholder for now)
     nav_panel(
       h5("Time Point"),
-      class = ".box",
       bslib::layout_sidebar(
         sidebar = share_sidebar,
         navset_card_underline(
-          # Start of Time Point - Day 1
-          nav_panel(
-            "Day 1",
-            card("Filler", max_height = 800)
-          ),
-
-          # Start of Time Point - Day 7
-          nav_panel(
-            "Day 7",
-            card("Space filler text for now until later.", max_height = 800)
-          ),
-
-          # Start of Time Point - Day 14
-          nav_panel(
-            "Day 14",
-            card("Space filler text for now until later.", max_height = 800)
-          )
+          # You can later add an id here if you want to branch on time point as well
+          nav_panel("Day 1", card("Filler", max_height = 800)),
+          nav_panel("Day 7", card("Filler", max_height = 800)),
+          nav_panel("Day 14", card("Filler", max_height = 800))
         )
       )
     ),
     nav_spacer(),
-
-    #####
-    #
-    # Start of About
-    #
-    #####
+    # About Tab
     nav_panel(
       class = ".box",
       h5("About"),
-      card(
-        "Learn More Here.
-      
-      Was thinking this could be an 'about the authors' type of page and some info about the Lonergan Lab, etc."
-      )
+      card("About the authors and the Lonergan Lab.")
     )
   )
 )
 
-
 server <- function(input, output, session) {
+  # Update the protein selection input choices
   shiny::updateSelectizeInput(
     session,
     inputId = "sel_protein",
@@ -255,59 +209,21 @@ server <- function(input, output, session) {
     )
   )
 
-  selected_fasta <- shiny::reactive({
+  # Reactive for FASTA sequence data
+  selected_fasta <- reactive({
     req(input$sel_protein)
-
-    selected_protein <- stringr::str_extract(
-      input$sel_protein,
-      pattern = "(?<=: )\\w+$"
-    )
+    selected_protein <- stringr::str_extract(input$sel_protein, "(?<=: )\\w+$")
     get_protein_fasta(fasta, protein = selected_protein)
-  })
-
-  combine_day <- shiny::reactive({
-    req(input$sel_protein)
-
-    selected_protein <- stringr::str_extract(
-      input$sel_protein,
-      pattern = "(?<=: )\\w+$"
-    )
-
-    day01 <- get_protein_data(
-      input = all_total_peptides,
-      day = "01",
-      fraction = "Purge",
-      protein = selected_protein
-    )
-    day07 <- get_protein_data(
-      input = all_total_peptides,
-      day = "07",
-      fraction = "Purge",
-      protein = selected_protein
-    )
-    day14 <- get_protein_data(
-      input = all_total_peptides,
-      day = "14",
-      fraction = "Purge",
-      protein = selected_protein
-    )
-
-    bind_rows(day01, day07, day14)
   })
 
   output$text <- renderUI({
     req(input$sel_protein)
-
     if (stringr::str_detect(input$sel_protein, "020931560")) {
       return(NULL)
     } else {
-      uni_id <- stringr::str_extract(
-        input$sel_protein,
-        pattern = "(?<=: )\\w+$"
-      )
-
+      uni_id <- stringr::str_extract(input$sel_protein, "(?<=: )\\w+$")
       tags$div(
-        sytle = "display: inline-block",
+        style = "display: inline-block",
         tags$a(
           href = paste0("https://www.uniprot.org/uniprotkb/", uni_id, "/entry"),
           paste0("Visit UniProt for ", uni_id),
@@ -319,35 +235,47 @@ server <- function(input, output, session) {
 
   output$frac_purge <- plotly::renderPlotly({
     req(input$sel_protein)
+    selected_protein <- stringr::str_extract(input$sel_protein, "(?<=: )\\w+$")
 
-    p <- ggplot(data = combine_day(), aes(x = Peptide.Position, y = 0)) +
+    day01 <- get_protein_data(
+      all_total_peptides,
+      "01",
+      "Purge",
+      selected_protein
+    )
+    day07 <- get_protein_data(
+      all_total_peptides,
+      "07",
+      "Purge",
+      selected_protein
+    )
+    day14 <- get_protein_data(
+      all_total_peptides,
+      "14",
+      "Purge",
+      selected_protein
+    )
+    data <- dplyr::bind_rows(day01, day07, day14)
 
+    p <- ggplot(data, aes(x = Peptide.Position, y = 0)) +
       geom_point(aes(
         text = paste0("<b>Identified Peptide</b>: ", Peptide.Sequence)
       )) +
-
-      scale_x_continuous(limits = c(0, max(combine_day()$Total.AA))) +
+      scale_x_continuous(limits = c(0, max(data$Total.AA, na.rm = TRUE))) +
       scale_y_continuous(limits = c(-0.5, 1)) +
-
       geom_segment(
-        data = combine_day() |>
-          distinct(
+        data = data |>
+          dplyr::distinct(
             Peptide.Sequence,
             Protein.Start,
             Time.Point,
             .keep_all = TRUE
           ),
-        aes(
-          x = Peptide.Position,
-          y = 0,
-          xend = Peptide.Position,
-          yend = 0.1
-        )
+        aes(x = Peptide.Position, y = 0, xend = Peptide.Position, yend = 0.1)
       ) +
-
       geom_point(
-        data = combine_day() |>
-          distinct(
+        data = data |>
+          dplyr::distinct(
             Peptide.Sequence,
             Protein.Start,
             Time.Point,
@@ -359,7 +287,6 @@ server <- function(input, output, session) {
           color = if_else(Is.Unique == "TRUE", "#ff0000", "#000000")
         )
       ) +
-
       scale_color_identity() +
       facet_wrap(
         ~ factor(
@@ -371,11 +298,8 @@ server <- function(input, output, session) {
             "Day 14 Postmortem"
           )
         ),
-        ncol = 1,
-        axes = "all",
-        axis.labels = "all_x"
+        ncol = 1
       ) +
-
       theme(
         panel.background = element_blank(),
         axis.ticks = element_blank(),
@@ -385,12 +309,14 @@ server <- function(input, output, session) {
         legend.position = "none",
         strip.background = element_rect(colour = "#000000", linewidth = 1)
       ) +
-
       ggtitle(label = input$sel_protein) +
-
       labs(x = "Amino Acid Residue Position (N- to C-Term)")
 
-    if (length(selected_fasta()$Protein.Position) < 2500) {
+    # Optionally add FASTA annotation if available and short enough
+    if (
+      nrow(selected_fasta()) > 0 &&
+        length(selected_fasta()$Protein.Position) < 2500
+    ) {
       p <- p +
         geom_text(
           data = selected_fasta(),
@@ -414,46 +340,142 @@ server <- function(input, output, session) {
           family = "Courier",
           size = 3
         )
+    }
 
-      plotly::ggplotly(p, tooltip = c("text")) |>
-        plotly::style(hoverinfo = "none", traces = c(4:9)) |>
-        plotly::layout(
-          hovermode = "x unified",
-          xaxis = list(
-            showspikes = TRUE,
-            spikemode = "across",
-            spikesnap = "cursor",
-            spikethickness = 2,
-            spikedash = "solid"
-          )
+    plotly::ggplotly(p, tooltip = c("text")) |>
+      plotly::layout(
+        hovermode = "x unified",
+        xaxis = list(
+          showspikes = TRUE,
+          spikemode = "across",
+          spikesnap = "cursor",
+          spikethickness = 2,
+          spikedash = "solid"
         )
-    } else {
+      )
+  })
+
+  output$frac_sarco <- plotly::renderPlotly({
+    req(input$sel_protein)
+    selected_protein <- stringr::str_extract(input$sel_protein, "(?<=: )\\w+$")
+
+    # Build data for Sarcoplasmic fraction
+    day01 <- get_protein_data(
+      all_total_peptides,
+      "01",
+      "Sarco",
+      selected_protein
+    )
+    day07 <- get_protein_data(
+      all_total_peptides,
+      "07",
+      "Sarco",
+      selected_protein
+    )
+    day14 <- get_protein_data(
+      all_total_peptides,
+      "14",
+      "Sarco",
+      selected_protein
+    )
+    data <- dplyr::bind_rows(day01, day07, day14)
+
+    p <- ggplot(data, aes(x = Peptide.Position, y = 0)) +
+      geom_point(aes(
+        text = paste0("<b>Identified Peptide</b>: ", Peptide.Sequence)
+      )) +
+      scale_x_continuous(limits = c(0, max(data$Total.AA, na.rm = TRUE))) +
+      scale_y_continuous(limits = c(-0.5, 1)) +
+      geom_segment(
+        data = data |>
+          dplyr::distinct(
+            Peptide.Sequence,
+            Protein.Start,
+            Time.Point,
+            .keep_all = TRUE
+          ),
+        aes(x = Peptide.Position, y = 0, xend = Peptide.Position, yend = 0.1)
+      ) +
+      geom_point(
+        data = data |>
+          dplyr::distinct(
+            Peptide.Sequence,
+            Protein.Start,
+            Time.Point,
+            .keep_all = TRUE
+          ),
+        aes(
+          x = Peptide.Position,
+          y = 0.1,
+          color = if_else(Is.Unique == "TRUE", "#ff0000", "#000000")
+        )
+      ) +
+      scale_color_identity() +
+      facet_wrap(
+        ~ factor(
+          Time.Point,
+          levels = c("Day01", "Day07", "Day14"),
+          labels = c(
+            "Day 1 Postmortem",
+            "Day 7 Postmortem",
+            "Day 14 Postmortem"
+          )
+        ),
+        ncol = 1
+      ) +
+      theme(
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none",
+        strip.background = element_rect(colour = "#000000", linewidth = 1)
+      ) +
+      ggtitle(label = input$sel_protein) +
+      labs(x = "Amino Acid Residue Position (N- to C-Term)")
+
+    # Optionally add FASTA annotation if available and short enough
+    if (
+      nrow(selected_fasta()) > 0 &&
+        length(selected_fasta()$Protein.Position) < 2500
+    ) {
       p <- p +
         geom_text(
-          data = combine_day(),
+          data = selected_fasta(),
           aes(
-            x = Peptide.Position,
+            x = Protein.Position,
             y = -0.5,
-            label = Peptide.Position,
-            text = paste0("<b>Protein Position</b>: ", Peptide.Position)
+            label = Protein.Position,
+            text = paste0("<b>Protein Position</b>: ", Protein.Position)
+          ),
+          family = "Courier",
+          size = 3
+        ) +
+        geom_text(
+          data = selected_fasta(),
+          aes(
+            x = Protein.Position,
+            y = -0.3,
+            label = Sequence,
+            text = paste0("<b>Residue</b>: ", Sequence)
           ),
           family = "Courier",
           size = 3
         )
-
-      plotly::ggplotly(p, tooltip = c("text")) |>
-        plotly::style(hoverinfo = "none", traces = c(4:12)) |>
-        plotly::layout(
-          hovermode = "x unified",
-          xaxis = list(
-            showspikes = TRUE,
-            spikemode = "across",
-            spikesnap = "cursor",
-            spikethickness = 2,
-            spikedash = "solid"
-          )
-        )
     }
+
+    plotly::ggplotly(p, tooltip = c("text")) |>
+      plotly::layout(
+        hovermode = "x unified",
+        xaxis = list(
+          showspikes = TRUE,
+          spikemode = "across",
+          spikesnap = "cursor",
+          spikethickness = 2,
+          spikedash = "solid"
+        )
+      )
   })
 }
 
