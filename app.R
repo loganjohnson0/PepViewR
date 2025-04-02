@@ -4,9 +4,6 @@ library(dplyr)
 library(nanoparquet)
 library(plotly)
 library(tidyr)
-library(markdown)
-library(stringr)
-library(tibble)
 library(htmltools)
 library(shiny)
 
@@ -33,10 +30,10 @@ fasta <- nanoparquet::read_parquet(
 
 get_protein_data <- function(input, day, protein) {
   selected <- input |>
-    dplyr::filter(stringr::str_detect(Protein.ID, protein))
+    dplyr::filter(grepl(protein, Protein.ID, ))
 
   if (length(selected$Protein.ID) < 1) {
-    selected <- tibble::tibble(
+    selected <- data.frame(
       Protein.Description = "",
       Protein.ID = protein,
       Peptide.Sequence = "",
@@ -71,9 +68,9 @@ get_protein_data <- function(input, day, protein) {
 
 get_protein_fasta <- function(input, protein) {
   protein_fasta <- input |>
-    dplyr::filter(stringr::str_detect(Protein.ID, protein)) |>
+    dplyr::filter(grepl(protein, Protein.ID)) |>
     dplyr::select(-Total.AA) |>
-    dplyr::mutate(Sequence = stringr::str_split(Sequence, "")) |>
+    dplyr::mutate(Sequence = strsplit(Sequence, "")) |>
     tidyr::unnest(Sequence) |>
     dplyr::mutate(Protein.Position = dplyr::row_number())
 }
@@ -255,20 +252,14 @@ server <- function(input, output, session) {
   selected_fasta <- shiny::reactive({
     req(input$sel_protein)
 
-    selected_protein <- stringr::str_extract(
-      input$sel_protein,
-      pattern = "(?<=: )\\w+$"
-    )
+    selected_protein <- sub(".*: (\\w+)$", "\\1", input$sel_protein)
     get_protein_fasta(fasta, protein = selected_protein)
   })
 
   combine_day <- shiny::reactive({
     req(input$sel_protein)
 
-    selected_protein <- stringr::str_extract(
-      input$sel_protein,
-      pattern = "(?<=: )\\w+$"
-    )
+    selected_protein <- sub(".*: (\\w+)$", "\\1", input$sel_protein)
 
     day01 <- get_protein_data(
       input = purge_day01_total_peptides,
