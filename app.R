@@ -13,17 +13,11 @@ purge_total_peptides <- nanoparquet::read_parquet(
 sarco_total_peptides <- nanoparquet::read_parquet(
   "data/2025_03_31_Sarco_Combined_Total_Peptides.parquet"
 )
-all_total_peptides <- rbind(sarco_total_peptides, purge_total_peptides)
+all_total_peptides <- bind_rows(sarco_total_peptides, purge_total_peptides)
 fasta <- nanoparquet::read_parquet(
   "data/2025-03-31_Sus_Scrofa_Total_fasta.parquet"
 )
 
-names <- all_total_peptides |>
-  dplyr::select(c(Protein.Description, Protein.ID, Gene)) |>
-  dplyr::distinct(Protein.ID, .keep_all = TRUE) |>
-  dplyr::arrange(Gene, Protein.Description)
-
-# Functions to filter data and get FASTA
 get_protein_data <- function(input, day, fraction, protein) {
   selected <- input |>
     dplyr::filter(
@@ -33,7 +27,6 @@ get_protein_data <- function(input, day, fraction, protein) {
     )
 
   if (nrow(selected) < 1) {
-    # Return a dummy data.frame if nothing is found
     selected <- data.frame(
       Protein.Description = "",
       Protein.ID = protein,
@@ -77,8 +70,8 @@ get_protein_fasta <- function(input, protein) {
     dplyr::mutate(Protein.Position = dplyr::row_number())
 }
 
-# Shared sidebar remains unchanged
-share_sidebar <- sidebar(
+
+fraction_sidebar <- sidebar(
   width = 300,
   div(
     htmltools::HTML(
@@ -92,11 +85,50 @@ share_sidebar <- sidebar(
     style = "display: inline;"
   ),
   shiny::selectInput(
-    inputId = "sel_protein",
+    inputId = "fraction_protein",
     label = "Protein Name, Gene, or UniProtID",
     choices = NULL,
     selected = NULL
   ),
+  uiOutput("fraction_text"),
+  div(
+    htmltools::HTML(
+      'The <b><span style="color: red;">Red Dots</span></b> indicate the start of a Unique tryptic peptide.'
+    )
+  ),
+  div(
+    htmltools::HTML(
+      'The <b><span style="color: black;">Black Dots</span></b> indicate the start of a Non-Unique tryptic peptide.'
+    )
+  ),
+  div(
+    htmltools::HTML(
+      "<h4>Note</h4> Not all proteins are present; if your protein is missing, it was not identified in this experiment."
+    )
+  )
+)
+
+
+time_sidebar <- sidebar(
+  width = 300,
+  div(
+    htmltools::HTML(
+      "Start by selecting the protein you are interested in visualizing. You can scroll or type to search for a:
+<ul>
+<li>Protein's Name (Desmin)</li>
+<li>Protein's Gene Product (DES)</li>
+<li>Protein's UniProt ID (P02540)</li>
+</ul>"
+    ),
+    style = "display: inline;"
+  ),
+  shiny::selectInput(
+    inputId = "time_protein",
+    label = "Protein Name, Gene, or UniProtID",
+    choices = NULL,
+    selected = NULL
+  ),
+  uiOutput("time_text"),
   div(
     htmltools::HTML(
       'The <b><span style="color: red;">Red Dots</span></b> indicate the start of a Unique tryptic peptide.'
@@ -142,14 +174,13 @@ ui <- bslib::page_fillable(
     nav_panel(
       h5("Protein Fraction"),
       bslib::layout_sidebar(
-        sidebar = share_sidebar,
-        # IMPORTANT: Add an id to capture the selected sub-tab
+        sidebar = fraction_sidebar,
+
         navset_card_underline(
           id = "fraction_tab",
           nav_panel(
             "Purge",
             card(
-              uiOutput("text"),
               plotly::plotlyOutput("frac_purge"),
               max_height = 800
             )
@@ -157,7 +188,6 @@ ui <- bslib::page_fillable(
           nav_panel(
             "Sarcoplasmic",
             card(
-              uiOutput("text"),
               plotly::plotlyOutput("frac_sarco"),
               max_height = 800
             )
@@ -165,16 +195,33 @@ ui <- bslib::page_fillable(
         )
       )
     ),
-    # Time Point Tab (placeholder for now)
+    # Time Point Tab
     nav_panel(
       h5("Time Point"),
       bslib::layout_sidebar(
-        sidebar = share_sidebar,
+        sidebar = time_sidebar,
         navset_card_underline(
-          # You can later add an id here if you want to branch on time point as well
-          nav_panel("Day 1", card("Filler", max_height = 800)),
-          nav_panel("Day 7", card("Filler", max_height = 800)),
-          nav_panel("Day 14", card("Filler", max_height = 800))
+          nav_panel(
+            "Day 1",
+            card(
+              plotly::plotlyOutput("time_01"),
+              max_height = 800
+            )
+          ),
+          nav_panel(
+            "Day 7",
+            card(
+              plotly::plotlyOutput("time_07"),
+              max_height = 800
+            )
+          ),
+          nav_panel(
+            "Day 14",
+            card(
+              plotly::plotlyOutput("time_14"),
+              max_height = 800
+            )
+          )
         )
       )
     ),
@@ -189,10 +236,14 @@ ui <- bslib::page_fillable(
 )
 
 server <- function(input, output, session) {
-  # Update the protein selection input choices
+  names <- all_total_peptides |>
+    dplyr::select(c(Protein.Description, Protein.ID, Gene)) |>
+    dplyr::distinct(Protein.ID, .keep_all = TRUE) |>
+    dplyr::arrange(Gene, Protein.Description)
+
   shiny::updateSelectizeInput(
     session,
-    inputId = "sel_protein",
+    inputId = "fraction_protein",
     choices = paste0(
       names$Protein.Description,
       " (",
@@ -209,19 +260,63 @@ server <- function(input, output, session) {
     )
   )
 
-  # Reactive for FASTA sequence data
-  selected_fasta <- reactive({
-    req(input$sel_protein)
-    selected_protein <- stringr::str_extract(input$sel_protein, "(?<=: )\\w+$")
+  shiny::updateSelectizeInput(
+    session,
+    inputId = "time_protein",
+    choices = paste0(
+      names$Protein.Description,
+      " (",
+      names$Gene,
+      "): ",
+      names$Protein.ID
+    ),
+    server = TRUE,
+    selected = "",
+    options = list(
+      maxItems = 1,
+      placeholder = "Start here....",
+      closeAfterSelect = TRUE
+    )
+  )
+
+  fraction_fasta <- reactive({
+    req(input$fraction_protein)
+    selected_protein <- stringr::str_extract(
+      input$fraction_protein,
+      "(?<=: )\\w+$"
+    )
     get_protein_fasta(fasta, protein = selected_protein)
   })
 
-  output$text <- renderUI({
-    req(input$sel_protein)
-    if (stringr::str_detect(input$sel_protein, "020931560")) {
+  time_fasta <- reactive({
+    req(input$time_protein)
+    selected_protein <- stringr::str_extract(input$time_protein, "(?<=: )\\w+$")
+    get_protein_fasta(fasta, protein = selected_protein)
+  })
+
+  output$fraction_text <- renderUI({
+    req(input$fraction_protein)
+    if (stringr::str_detect(input$fraction_protein, "020931560")) {
       return(NULL)
     } else {
-      uni_id <- stringr::str_extract(input$sel_protein, "(?<=: )\\w+$")
+      uni_id <- stringr::str_extract(input$fraction_protein, "(?<=: )\\w+$")
+      tags$div(
+        style = "display: inline-block",
+        tags$a(
+          href = paste0("https://www.uniprot.org/uniprotkb/", uni_id, "/entry"),
+          paste0("Visit UniProt for ", uni_id),
+          target = "_blank"
+        )
+      )
+    }
+  })
+
+  output$time_text <- renderUI({
+    req(input$time_protein)
+    if (stringr::str_detect(input$time_protein, "020931560")) {
+      return(NULL)
+    } else {
+      uni_id <- stringr::str_extract(input$time_protein, "(?<=: )\\w+$")
       tags$div(
         style = "display: inline-block",
         tags$a(
@@ -234,8 +329,11 @@ server <- function(input, output, session) {
   })
 
   output$frac_purge <- plotly::renderPlotly({
-    req(input$sel_protein)
-    selected_protein <- stringr::str_extract(input$sel_protein, "(?<=: )\\w+$")
+    req(input$fraction_protein)
+    selected_protein <- stringr::str_extract(
+      input$fraction_protein,
+      "(?<=: )\\w+$"
+    )
 
     day01 <- get_protein_data(
       all_total_peptides,
@@ -309,17 +407,17 @@ server <- function(input, output, session) {
         legend.position = "none",
         strip.background = element_rect(colour = "#000000", linewidth = 1)
       ) +
-      ggtitle(label = input$sel_protein) +
+      ggtitle(label = input$fraction_protein) +
       labs(x = "Amino Acid Residue Position (N- to C-Term)")
 
     # Optionally add FASTA annotation if available and short enough
     if (
-      nrow(selected_fasta()) > 0 &&
-        length(selected_fasta()$Protein.Position) < 2500
+      nrow(fraction_fasta()) > 0 &&
+        length(fraction_fasta()$Protein.Position) < 2500
     ) {
       p <- p +
         geom_text(
-          data = selected_fasta(),
+          data = fraction_fasta(),
           aes(
             x = Protein.Position,
             y = -0.5,
@@ -330,7 +428,7 @@ server <- function(input, output, session) {
           size = 3
         ) +
         geom_text(
-          data = selected_fasta(),
+          data = fraction_fasta(),
           aes(
             x = Protein.Position,
             y = -0.3,
@@ -341,6 +439,18 @@ server <- function(input, output, session) {
           size = 3
         )
     }
+    p <- p +
+      geom_text(
+        data = data,
+        aes(
+          x = Peptide.Position,
+          y = -0.5,
+          label = Peptide.Position,
+          text = paste0("<b>Protein Position</b>: ", Peptide.Position)
+        ),
+        family = "Courier",
+        size = 3
+      )
 
     plotly::ggplotly(p, tooltip = c("text")) |>
       plotly::layout(
@@ -356,8 +466,11 @@ server <- function(input, output, session) {
   })
 
   output$frac_sarco <- plotly::renderPlotly({
-    req(input$sel_protein)
-    selected_protein <- stringr::str_extract(input$sel_protein, "(?<=: )\\w+$")
+    req(input$fraction_protein)
+    selected_protein <- stringr::str_extract(
+      input$fraction_protein,
+      "(?<=: )\\w+$"
+    )
 
     # Build data for Sarcoplasmic fraction
     day01 <- get_protein_data(
@@ -432,17 +545,17 @@ server <- function(input, output, session) {
         legend.position = "none",
         strip.background = element_rect(colour = "#000000", linewidth = 1)
       ) +
-      ggtitle(label = input$sel_protein) +
+      ggtitle(label = input$fraction_protein) +
       labs(x = "Amino Acid Residue Position (N- to C-Term)")
 
     # Optionally add FASTA annotation if available and short enough
     if (
-      nrow(selected_fasta()) > 0 &&
-        length(selected_fasta()$Protein.Position) < 2500
+      nrow(fraction_fasta()) > 0 &&
+        length(fraction_fasta()$Protein.Position) < 2500
     ) {
       p <- p +
         geom_text(
-          data = selected_fasta(),
+          data = fraction_fasta(),
           aes(
             x = Protein.Position,
             y = -0.5,
@@ -453,7 +566,7 @@ server <- function(input, output, session) {
           size = 3
         ) +
         geom_text(
-          data = selected_fasta(),
+          data = fraction_fasta(),
           aes(
             x = Protein.Position,
             y = -0.3,
@@ -464,6 +577,409 @@ server <- function(input, output, session) {
           size = 3
         )
     }
+
+    p <- p +
+      geom_text(
+        data = data,
+        aes(
+          x = Peptide.Position,
+          y = -0.5,
+          label = Peptide.Position,
+          text = paste0("<b>Protein Position</b>: ", Peptide.Position)
+        ),
+        family = "Courier",
+        size = 3
+      )
+
+    plotly::ggplotly(p, tooltip = c("text")) |>
+      plotly::layout(
+        hovermode = "x unified",
+        xaxis = list(
+          showspikes = TRUE,
+          spikemode = "across",
+          spikesnap = "cursor",
+          spikethickness = 2,
+          spikedash = "solid"
+        )
+      )
+  })
+
+  output$time_01 <- plotly::renderPlotly({
+    req(input$time_protein)
+    selected_protein <- stringr::str_extract(input$time_protein, "(?<=: )\\w+$")
+
+    # Build data for Sarcoplasmic fraction
+    purge <- get_protein_data(
+      all_total_peptides,
+      "01",
+      "Purge",
+      selected_protein
+    )
+    sarco <- get_protein_data(
+      all_total_peptides,
+      "01",
+      "Sarco",
+      selected_protein
+    )
+
+    data <- dplyr::bind_rows(purge, sarco)
+
+    p <- ggplot(data, aes(x = Peptide.Position, y = 0)) +
+      geom_point(aes(
+        text = paste0("<b>Identified Peptide</b>: ", Peptide.Sequence)
+      )) +
+      scale_x_continuous(limits = c(0, max(data$Total.AA, na.rm = TRUE))) +
+      scale_y_continuous(limits = c(-0.5, 1)) +
+      geom_segment(
+        data = data |>
+          dplyr::distinct(
+            Peptide.Sequence,
+            Protein.Start,
+            Fraction,
+            .keep_all = TRUE
+          ),
+        aes(x = Peptide.Position, y = 0, xend = Peptide.Position, yend = 0.1)
+      ) +
+      geom_point(
+        data = data |>
+          dplyr::distinct(
+            Peptide.Sequence,
+            Protein.Start,
+            Fraction,
+            .keep_all = TRUE
+          ),
+        aes(
+          x = Peptide.Position,
+          y = 0.1,
+          color = if_else(Is.Unique == "TRUE", "#ff0000", "#000000")
+        )
+      ) +
+      scale_color_identity() +
+      facet_wrap(
+        ~ factor(
+          Fraction,
+          levels = c("Sarco", "Purge"),
+          labels = c(
+            "Sarcoplasmic Extract",
+            "Purge Extract"
+          )
+        ),
+        ncol = 1
+      ) +
+      theme(
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none",
+        strip.background = element_rect(colour = "#000000", linewidth = 1)
+      ) +
+      ggtitle(label = input$time_protein) +
+      labs(x = "Amino Acid Residue Position (N- to C-Term)")
+
+    # Optionally add FASTA annotation if available and short enough
+    if (
+      nrow(time_fasta()) > 0 &&
+        length(time_fasta()$Protein.Position) < 2500
+    ) {
+      p <- p +
+        geom_text(
+          data = time_fasta(),
+          aes(
+            x = Protein.Position,
+            y = -0.5,
+            label = Protein.Position,
+            text = paste0("<b>Protein Position</b>: ", Protein.Position)
+          ),
+          family = "Courier",
+          size = 3
+        ) +
+        geom_text(
+          data = time_fasta(),
+          aes(
+            x = Protein.Position,
+            y = -0.3,
+            label = Sequence,
+            text = paste0("<b>Residue</b>: ", Sequence)
+          ),
+          family = "Courier",
+          size = 3
+        )
+    }
+
+    p <- p +
+      geom_text(
+        data = data,
+        aes(
+          x = Peptide.Position,
+          y = -0.5,
+          label = Peptide.Position,
+          text = paste0("<b>Protein Position</b>: ", Peptide.Position)
+        ),
+        family = "Courier",
+        size = 3
+      )
+
+    plotly::ggplotly(p, tooltip = c("text")) |>
+      plotly::layout(
+        hovermode = "x unified",
+        xaxis = list(
+          showspikes = TRUE,
+          spikemode = "across",
+          spikesnap = "cursor",
+          spikethickness = 2,
+          spikedash = "solid"
+        )
+      )
+  })
+
+  output$time_07 <- plotly::renderPlotly({
+    req(input$time_protein)
+    selected_protein <- stringr::str_extract(input$time_protein, "(?<=: )\\w+$")
+
+    # Build data for Sarcoplasmic fraction
+    purge <- get_protein_data(
+      all_total_peptides,
+      "07",
+      "Purge",
+      selected_protein
+    )
+    sarco <- get_protein_data(
+      all_total_peptides,
+      "07",
+      "Sarco",
+      selected_protein
+    )
+
+    data <- dplyr::bind_rows(purge, sarco)
+
+    p <- ggplot(data, aes(x = Peptide.Position, y = 0)) +
+      geom_point(aes(
+        text = paste0("<b>Identified Peptide</b>: ", Peptide.Sequence)
+      )) +
+      scale_x_continuous(limits = c(0, max(data$Total.AA, na.rm = TRUE))) +
+      scale_y_continuous(limits = c(-0.5, 1)) +
+      geom_segment(
+        data = data |>
+          dplyr::distinct(
+            Peptide.Sequence,
+            Protein.Start,
+            Fraction,
+            .keep_all = TRUE
+          ),
+        aes(x = Peptide.Position, y = 0, xend = Peptide.Position, yend = 0.1)
+      ) +
+      geom_point(
+        data = data |>
+          dplyr::distinct(
+            Peptide.Sequence,
+            Protein.Start,
+            Fraction,
+            .keep_all = TRUE
+          ),
+        aes(
+          x = Peptide.Position,
+          y = 0.1,
+          color = if_else(Is.Unique == "TRUE", "#ff0000", "#000000")
+        )
+      ) +
+      scale_color_identity() +
+      facet_wrap(
+        ~ factor(
+          Fraction,
+          levels = c("Sarco", "Purge"),
+          labels = c(
+            "Sarcoplasmic Extract",
+            "Purge Extract"
+          )
+        ),
+        ncol = 1
+      ) +
+      theme(
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none",
+        strip.background = element_rect(colour = "#000000", linewidth = 1)
+      ) +
+      ggtitle(label = input$time_protein) +
+      labs(x = "Amino Acid Residue Position (N- to C-Term)")
+
+    # Optionally add FASTA annotation if available and short enough
+    if (
+      nrow(time_fasta()) > 0 &&
+        length(time_fasta()$Protein.Position) < 2500
+    ) {
+      p <- p +
+        geom_text(
+          data = time_fasta(),
+          aes(
+            x = Protein.Position,
+            y = -0.5,
+            label = Protein.Position,
+            text = paste0("<b>Protein Position</b>: ", Protein.Position)
+          ),
+          family = "Courier",
+          size = 3
+        ) +
+        geom_text(
+          data = time_fasta(),
+          aes(
+            x = Protein.Position,
+            y = -0.3,
+            label = Sequence,
+            text = paste0("<b>Residue</b>: ", Sequence)
+          ),
+          family = "Courier",
+          size = 3
+        )
+    }
+
+    p <- p +
+      geom_text(
+        data = data,
+        aes(
+          x = Peptide.Position,
+          y = -0.5,
+          label = Peptide.Position,
+          text = paste0("<b>Protein Position</b>: ", Peptide.Position)
+        ),
+        family = "Courier",
+        size = 3
+      )
+
+    plotly::ggplotly(p, tooltip = c("text")) |>
+      plotly::layout(
+        hovermode = "x unified",
+        xaxis = list(
+          showspikes = TRUE,
+          spikemode = "across",
+          spikesnap = "cursor",
+          spikethickness = 2,
+          spikedash = "solid"
+        )
+      )
+  })
+
+  output$time_14 <- plotly::renderPlotly({
+    req(input$time_protein)
+    selected_protein <- stringr::str_extract(input$time_protein, "(?<=: )\\w+$")
+
+    # Build data for Sarcoplasmic fraction
+    purge <- get_protein_data(
+      all_total_peptides,
+      "14",
+      "Purge",
+      selected_protein
+    )
+    sarco <- get_protein_data(
+      all_total_peptides,
+      "14",
+      "Sarco",
+      selected_protein
+    )
+
+    data <- dplyr::bind_rows(purge, sarco)
+
+    p <- ggplot(data, aes(x = Peptide.Position, y = 0)) +
+      geom_point(aes(
+        text = paste0("<b>Identified Peptide</b>: ", Peptide.Sequence)
+      )) +
+      scale_x_continuous(limits = c(0, max(data$Total.AA, na.rm = TRUE))) +
+      scale_y_continuous(limits = c(-0.5, 1)) +
+      geom_segment(
+        data = data |>
+          dplyr::distinct(
+            Peptide.Sequence,
+            Protein.Start,
+            Fraction,
+            .keep_all = TRUE
+          ),
+        aes(x = Peptide.Position, y = 0, xend = Peptide.Position, yend = 0.1)
+      ) +
+      geom_point(
+        data = data |>
+          dplyr::distinct(
+            Peptide.Sequence,
+            Protein.Start,
+            Fraction,
+            .keep_all = TRUE
+          ),
+        aes(
+          x = Peptide.Position,
+          y = 0.1,
+          color = if_else(Is.Unique == "TRUE", "#ff0000", "#000000")
+        )
+      ) +
+      scale_color_identity() +
+      facet_wrap(
+        ~ factor(
+          Fraction,
+          levels = c("Sarco", "Purge"),
+          labels = c(
+            "Sarcoplasmic Extract",
+            "Purge Extract"
+          )
+        ),
+        ncol = 1
+      ) +
+      theme(
+        panel.background = element_blank(),
+        axis.ticks = element_blank(),
+        axis.line = element_line(),
+        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none",
+        strip.background = element_rect(colour = "#000000", linewidth = 1)
+      ) +
+      ggtitle(label = input$time_protein) +
+      labs(x = "Amino Acid Residue Position (N- to C-Term)")
+
+    # Optionally add FASTA annotation if available and short enough
+    if (
+      nrow(time_fasta()) > 0 &&
+        length(time_fasta()$Protein.Position) < 2500
+    ) {
+      p <- p +
+        geom_text(
+          data = time_fasta(),
+          aes(
+            x = Protein.Position,
+            y = -0.5,
+            label = Protein.Position,
+            text = paste0("<b>Protein Position</b>: ", Protein.Position)
+          ),
+          family = "Courier",
+          size = 3
+        ) +
+        geom_text(
+          data = time_fasta(),
+          aes(
+            x = Protein.Position,
+            y = -0.3,
+            label = Sequence,
+            text = paste0("<b>Residue</b>: ", Sequence)
+          ),
+          family = "Courier",
+          size = 3
+        )
+    }
+
+    p <- p +
+      geom_text(
+        data = data,
+        aes(
+          x = Peptide.Position,
+          y = -0.5,
+          label = Peptide.Position,
+          text = paste0("<b>Protein Position</b>: ", Peptide.Position)
+        ),
+        family = "Courier",
+        size = 3
+      )
 
     plotly::ggplotly(p, tooltip = c("text")) |>
       plotly::layout(
@@ -478,5 +994,6 @@ server <- function(input, output, session) {
       )
   })
 }
+
 
 shiny::shinyApp(ui = ui, server = server)
