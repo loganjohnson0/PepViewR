@@ -6,6 +6,10 @@ library(plotly)
 library(tidyr)
 library(shiny)
 
+# TO DO:
+# 1. Need to get the different tabs working....I thought I had that figured out.
+# 2. Add details to welcome page
+# 3. Add details to about page
 
 purge_total_peptides <- nanoparquet::read_parquet(
   file = "data/2025_03_31_Purge_Combined_Total_Peptides.parquet"
@@ -171,7 +175,11 @@ ui <- bslib::page_fillable(
           # Start of Protein Fraction - Sarcoplasmic
           nav_panel(
             "Sarcoplasmic",
-            card("Space filler text for now until later.", max_height = 800)
+            card(
+              uiOutput("text"),
+              plotly::plotlyOutput("frac_sarco"),
+              max_height = 800
+            )
           )
         )
       )
