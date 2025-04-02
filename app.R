@@ -4,7 +4,6 @@ library(dplyr)
 library(nanoparquet)
 library(plotly)
 library(tidyr)
-library(htmltools)
 library(shiny)
 
 
@@ -30,7 +29,7 @@ fasta <- nanoparquet::read_parquet(
 
 get_protein_data <- function(input, day, protein) {
   selected <- input |>
-    dplyr::filter(grepl(protein, Protein.ID, ))
+    dplyr::filter(stringr::str_detect(Protein.ID, protein))
 
   if (length(selected$Protein.ID) < 1) {
     selected <- data.frame(
@@ -68,9 +67,9 @@ get_protein_data <- function(input, day, protein) {
 
 get_protein_fasta <- function(input, protein) {
   protein_fasta <- input |>
-    dplyr::filter(grepl(protein, Protein.ID)) |>
+    dplyr::filter(stringr::str_detect(Protein.ID, protein)) |>
     dplyr::select(-Total.AA) |>
-    dplyr::mutate(Sequence = strsplit(Sequence, "")) |>
+    dplyr::mutate(Sequence = stringr::str_split(Sequence, "")) |>
     tidyr::unnest(Sequence) |>
     dplyr::mutate(Protein.Position = dplyr::row_number())
 }
@@ -252,14 +251,20 @@ server <- function(input, output, session) {
   selected_fasta <- shiny::reactive({
     req(input$sel_protein)
 
-    selected_protein <- sub(".*: (\\w+)$", "\\1", input$sel_protein)
+    selected_protein <- stringr::str_extract(
+      input$sel_protein,
+      pattern = "(?<=: )\\w+$"
+    )
     get_protein_fasta(fasta, protein = selected_protein)
   })
 
   combine_day <- shiny::reactive({
     req(input$sel_protein)
 
-    selected_protein <- sub(".*: (\\w+)$", "\\1", input$sel_protein)
+    selected_protein <- stringr::str_extract(
+      input$sel_protein,
+      pattern = "(?<=: )\\w+$"
+    )
 
     day01 <- get_protein_data(
       input = purge_day01_total_peptides,
@@ -283,10 +288,13 @@ server <- function(input, output, session) {
   output$text <- renderUI({
     req(input$sel_protein)
 
-    if (grepl("020931560", input$sel_protein)) {
+    if (stringr::str_detect(input$sel_protein, "020931560")) {
       return(NULL)
     } else {
-      uni_id <- sub(".*: (\\w+)$", "\\1", input$sel_protein)
+      uni_id <- stringr::str_extract(
+        input$sel_protein,
+        pattern = "(?<=: )\\w+$"
+      )
 
       tags$div(
         sytle = "display: inline-block",
