@@ -2289,7 +2289,7 @@
       "checksum": "cf975eff7c27aad16f2d4a46e975dd6c"
     },
     "app.R": {
-      "checksum": "94657359c736773c84b06fd1b3bf07a0"
+      "checksum": "accc0c613828ffdefee21fa204d87769"
     },
     "data/2025_03_31_Purge_Combined_Protein_Results.parquet": {
       "checksum": "61c3aa5f3fe7af4927790e1642aac113"
@@ -2320,6 +2320,18 @@
     },
     "README.md": {
       "checksum": "54bc86f976fb06d37d47058fc2dbfb7d"
+    },
+    "www/elisabeth_lonergan.jpeg": {
+      "checksum": "8b12f68eb53bf755c9d7608177cae6db"
+    },
+    "www/graphical_workflow.png": {
+      "checksum": "39dd1894a1457bd5a2daee0b0484dfe3"
+    },
+    "www/logan_johnson.jpg": {
+      "checksum": "494d8b302013a234774cc60c670eaf37"
+    },
+    "www/steven_lonergan.png": {
+      "checksum": "da7ab2b58b64f45ef4f4f7f235e8546d"
     }
   },
   "users": null
