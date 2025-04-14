@@ -168,7 +168,21 @@ ui <- bslib::page_fillable(
     nav_panel(
       class = ".box",
       h5("Welcome"),
-      card("Introduction and links can go here.")
+
+      card(
+        card_header("Motivation"),
+        "Bioinformatic tools help generate meaningful outputs of large datasets from genomic, transcriptomic, proteomic, metabolomic, and other types of omic-based methods.
+        The meat science research community has also employed these tools with samples of early and extended postmortem samples.
+        One could argue results from these tools are helpful for interpreting these results in meat science; however, many of these tools provide results and outputs that are uninformative and out of context, given the samples are in a postmortem context.
+        This work aimed to illustrate an alternative approach to visualizing and contextualizing results in meat science in a way that can be informative and useful for researchers and a broader audience."
+      ),
+      card(
+        card_header("Experimental Background"),
+        "These proteomic data were generated from samples selected based on 1 day postmortem pH from a commercial pork plant (Jess et al., In Press).
+        The workflow diagram broadly illustrates the protein extraction methods used for this experiment.",
+        imageOutput("illustration", height = "auto"),
+        max_height = 400
+      ),
     ),
     # Protein Fraction Tab
     nav_panel(
@@ -230,12 +244,84 @@ ui <- bslib::page_fillable(
     nav_panel(
       class = ".box",
       h5("About"),
-      card("About the authors and the Lonergan Lab.")
+
+      card(
+        card_header("Logan Johnson"),
+        layout_columns(
+          col_widths = c(3, 9),
+          imageOutput("lgj", height = "auto"),
+          "Logan Johnson"
+        )
+      ),
+      layout_columns(
+        card(
+          card_header("Elisabeth Huff-Lonergan"),
+          layout_columns(
+            col_widths = c(3, 9),
+            imageOutput("ehl", height = "auto"),
+            "Elisabeth Huff-Lonergan"
+          )
+        ),
+        card(
+          card_header("Steven Lonergan"),
+          layout_columns(
+            col_widths = c(3, 9),
+            imageOutput("sml", height = "auto"),
+            "Steven Lonergan"
+          )
+        )
+      )
     )
   )
 )
 
 server <- function(input, output, session) {
+  output$illustration <- renderImage(
+    {
+      list(
+        src = "www/graphical_workflow.png",
+        contentType = "image/png",
+        height = 200,
+        alt = "Protein sample preparation graphic"
+      )
+    },
+    deleteFile = FALSE
+  )
+
+  output$lgj <- renderImage(
+    {
+      list(
+        src = "www/logan_johnson.jpg",
+        contentType = "image/jpg",
+        height = 200,
+        alt = "Logan Johnson photo"
+      )
+    },
+    deleteFile = FALSE
+  )
+  output$ehl <- renderImage(
+    {
+      list(
+        src = "www/elisabeth_lonergan.jpeg",
+        contentType = "image/jpeg",
+        height = 200,
+        alt = "Elisabeth Huff-Lonergan photo"
+      )
+    },
+    deleteFile = FALSE
+  )
+  output$sml <- renderImage(
+    {
+      list(
+        src = "www/steven_lonergan.png",
+        contentType = "image/png",
+        height = 200,
+        alt = "Steven Lonergan photo"
+      )
+    },
+    deleteFile = FALSE
+  )
+
   names <- all_total_peptides |>
     dplyr::select(c(Protein.Description, Protein.ID, Gene)) |>
     dplyr::distinct(Protein.ID, .keep_all = TRUE) |>
