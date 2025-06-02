@@ -6,7 +6,7 @@ library(plotly)
 library(tidyr)
 library(shiny)
 
-# Read in your data
+# Read in the data
 purge_total_peptides <- nanoparquet::read_parquet(
   "data/2025_03_31_Purge_Combined_Total_Peptides.parquet"
 )
@@ -150,7 +150,7 @@ time_sidebar <- bslib::sidebar(
 )
 
 ui <- bslib::page_fillable(
-  titlePanel("PepViewR: Visualization of Proteomic Data"),
+  titlePanel("PepViewR: Visualization of Proteomic Data at the Peptide-Level"),
   theme = bslib::bs_theme(
     version = 5,
     bg = "#ffffff",
@@ -196,14 +196,14 @@ ui <- bslib::page_fillable(
         navset_card_underline(
           id = "fraction_tab",
           nav_panel(
-            "Purge",
+            "Muscle Exudate Extract",
             card(
               plotly::plotlyOutput("frac_purge"),
               max_height = 800
             )
           ),
           nav_panel(
-            "Low-Ionic Strength Soluble Protein Extract",
+            "Soluble Muscle Extract",
             card(
               plotly::plotlyOutput("frac_sarco"),
               max_height = 800
@@ -251,34 +251,104 @@ ui <- bslib::page_fillable(
       layout_columns(
         card(
           card_header("Logan Johnson"),
-          layout_columns(
-            col_widths = c(3, 9),
-            imageOutput("lgj", height = "auto"),
-            "Logan Johnson"
+          card_body(
+            div(
+              class = "row",
+              div(
+                class = "col-md-6",
+                imageOutput("lgj", height = "auto")
+              ),
+              div(
+                class = "col-md-6",
+                p(
+                  "Logan is currently a Postdoctoral Research Associate at Iowa State University in the Lonergan Lab.
+                In July 2025, Logan will begin as an Assistant Professor of Food Science at Oklahoma State University in the",
+                  tags$a(
+                    href = "https://agriculture.okstate.edu/departments-programs/afs/",
+                    "Department of Animal and Food Sciences."
+                  ),
+                )
+              )
+            )
           )
         ),
         card(
-          card_header("Iowa State University"),
-          layout_columns(
-            col_widths = c(3, 9),
+          card_header("Elisabeth Huff-Lonergan"),
+          card_body(
+            div(
+              class = "row",
+              div(
+                class = "col-md-6",
+                imageOutput("ehl", height = "auto")
+              ),
+              div(
+                class = "col-md-6",
+                p(
+                  tags$a(
+                    href = "https://www.ans.iastate.edu/people/elisabeth-huff-lonergan",
+                    "Elisabeth"
+                  ),
+                  "is currently a University Professor at Iowa State University in the Department of Animal Science. \n
+                  She serves as the Editor-In-Chief for the",
+                  tags$a(
+                    href = "https://academic.oup.com/jas",
+                    "Journal of Animal Science"
+                  ),
+                  "and was previously the Editor-In-Chief for",
+                  tags$a(
+                    href = "https://www.iastatedigitalpress.com/mmb/",
+                    "Meat and Muscle Biology."
+                  )
+                ),
+              )
+            )
           )
         )
       ),
       layout_columns(
         card(
-          card_header("Elisabeth Huff-Lonergan"),
-          layout_columns(
-            col_widths = c(3, 9),
-            imageOutput("ehl", height = "auto"),
-            "Elisabeth Huff-Lonergan"
+          card_header("Steven Lonergan"),
+          card_body(
+            div(
+              class = "row",
+              div(
+                class = "col-md-6",
+                imageOutput("sml", height = "auto")
+              ),
+              div(
+                class = "col-md-6",
+                p(
+                  tags$a(
+                    href = "https://www.ans.iastate.edu/people/steven-lonergan",
+                    "Steven"
+                  ),
+                  "is currently a Morrill Professor at Iowa State University in the Department of Animal Science.
+                  He was recently elected to serve as the 2025-2026 President of the Board of Directors for the American Meat Science Association!
+                  He serves as a Section Editor for the",
+                  tags$a(
+                    href = "https://academic.oup.com/jas",
+                    "Journal of Animal Science."
+                  )
+                ),
+              )
+            )
           )
         ),
         card(
-          card_header("Steven Lonergan"),
-          layout_columns(
-            col_widths = c(3, 9),
-            imageOutput("sml", height = "auto"),
-            "Steven Lonergan"
+          card_header("Funding Acknowledgement"),
+          card_body(
+            p(
+              "This work has been funded (in part) thanks to the following grants:"
+            ),
+            tags$ul(
+              tags$li(
+                "the United States Department of Agriculture–Agriculture and Food Research Initiative project 2019-67017- 29181"
+              ),
+              tags$li(
+                "the National Science Foundation under Grant No. DGE-1828942, and"
+              ),
+              tags$li("the Iowa Pork Producers Association")
+            )
           )
         )
       )
