@@ -180,10 +180,8 @@ ui <- bslib::page_fillable(
           p(
             "Bioinformatic tools help generate meaningful outputs of large datasets from genomic, transcriptomic, proteomic, metabolomic, and other types of omic-based methods.
             These tools are almost exclusively trained and developed on data from living cellular systems.
-            The meat science research community has employed these tools to draw conclusions from postmortem skeletal muscle."
-          ),
-          p(
-            "One could argue that the outputs from bioinformatic tools are helpful for interpreting these results in meat science; however, many of these tools provide results and outputs that are uninformative, given the experimental samples were in a postmortem context.
+            The meat science research community has employed these tools to draw conclusions from postmortem skeletal muscle.
+            One could argue that the outputs from bioinformatic tools are helpful for interpreting these results in meat science; however, many of these tools provide results and outputs that are uninformative, given the experimental samples were in a postmortem context.
             This project and Shiny application aimed to illustrate an alternative approach that visualizes and contextualizes results from a meat science research experiment.
             This is ultimately an effort to demonstrate the need for creative alternatives to out-of-the-box bioinformatic tools to draw conclusions from samples in a postmortem context."
           )
