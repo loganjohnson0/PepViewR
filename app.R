@@ -13,7 +13,10 @@ purge_total_peptides <- nanoparquet::read_parquet(
 sarco_total_peptides <- nanoparquet::read_parquet(
   "data/2025_03_31_Sarco_Combined_Total_Peptides.parquet"
 )
-all_total_peptides <- bind_rows(sarco_total_peptides, purge_total_peptides)
+all_total_peptides <- dplyr::bind_rows(
+  sarco_total_peptides,
+  purge_total_peptides
+)
 fasta <- nanoparquet::read_parquet(
   "data/2025-03-31_Sus_Scrofa_Total_fasta.parquet"
 )
@@ -71,7 +74,7 @@ get_protein_fasta <- function(input, protein) {
 }
 
 
-fraction_sidebar <- sidebar(
+fraction_sidebar <- bslib::sidebar(
   width = 300,
   div(
     htmltools::HTML(
@@ -109,7 +112,7 @@ fraction_sidebar <- sidebar(
 )
 
 
-time_sidebar <- sidebar(
+time_sidebar <- bslib::sidebar(
   width = 300,
   div(
     htmltools::HTML(
@@ -200,7 +203,7 @@ ui <- bslib::page_fillable(
             )
           ),
           nav_panel(
-            "Sarcoplasmic",
+            "Low-Ionic Strength Soluble Protein Extract",
             card(
               plotly::plotlyOutput("frac_sarco"),
               max_height = 800
@@ -245,12 +248,20 @@ ui <- bslib::page_fillable(
       class = ".box",
       h5("About"),
 
-      card(
-        card_header("Logan Johnson"),
-        layout_columns(
-          col_widths = c(3, 9),
-          imageOutput("lgj", height = "auto"),
-          "Logan Johnson"
+      layout_columns(
+        card(
+          card_header("Logan Johnson"),
+          layout_columns(
+            col_widths = c(3, 9),
+            imageOutput("lgj", height = "auto"),
+            "Logan Johnson"
+          )
+        ),
+        card(
+          card_header("Iowa State University"),
+          layout_columns(
+            col_widths = c(3, 9),
+          )
         )
       ),
       layout_columns(
@@ -276,7 +287,7 @@ ui <- bslib::page_fillable(
 )
 
 server <- function(input, output, session) {
-  output$illustration <- renderImage(
+  output$illustration <- shiny::renderImage(
     {
       list(
         src = "www/graphical_workflow.png",
@@ -288,7 +299,7 @@ server <- function(input, output, session) {
     deleteFile = FALSE
   )
 
-  output$lgj <- renderImage(
+  output$lgj <- shiny::renderImage(
     {
       list(
         src = "www/logan_johnson.jpg",
@@ -299,7 +310,7 @@ server <- function(input, output, session) {
     },
     deleteFile = FALSE
   )
-  output$ehl <- renderImage(
+  output$ehl <- shiny::renderImage(
     {
       list(
         src = "www/elisabeth_lonergan.jpeg",
@@ -310,7 +321,7 @@ server <- function(input, output, session) {
     },
     deleteFile = FALSE
   )
-  output$sml <- renderImage(
+  output$sml <- shiny::renderImage(
     {
       list(
         src = "www/steven_lonergan.png",
@@ -365,7 +376,7 @@ server <- function(input, output, session) {
     )
   )
 
-  fraction_fasta <- reactive({
+  fraction_fasta <- shiny::reactive({
     req(input$fraction_protein)
     selected_protein <- stringr::str_extract(
       input$fraction_protein,
@@ -374,13 +385,13 @@ server <- function(input, output, session) {
     get_protein_fasta(fasta, protein = selected_protein)
   })
 
-  time_fasta <- reactive({
+  time_fasta <- shiny::reactive({
     req(input$time_protein)
     selected_protein <- stringr::str_extract(input$time_protein, "(?<=: )\\w+$")
     get_protein_fasta(fasta, protein = selected_protein)
   })
 
-  output$fraction_text <- renderUI({
+  output$fraction_text <- shiny::renderUI({
     req(input$fraction_protein)
     if (stringr::str_detect(input$fraction_protein, "020931560")) {
       return(NULL)
@@ -397,7 +408,7 @@ server <- function(input, output, session) {
     }
   })
 
-  output$time_text <- renderUI({
+  output$time_text <- shiny::renderUI({
     req(input$time_protein)
     if (stringr::str_detect(input$time_protein, "020931560")) {
       return(NULL)
@@ -558,7 +569,7 @@ server <- function(input, output, session) {
       "(?<=: )\\w+$"
     )
 
-    # Build data for Sarcoplasmic fraction
+    # Build data for Low-Ionic Strength fraction
     day01 <- get_protein_data(
       all_total_peptides,
       "01",
@@ -694,7 +705,7 @@ server <- function(input, output, session) {
     req(input$time_protein)
     selected_protein <- stringr::str_extract(input$time_protein, "(?<=: )\\w+$")
 
-    # Build data for Sarcoplasmic fraction
+    # Build data for Low-Ionic Strength fraction
     purge <- get_protein_data(
       all_total_peptides,
       "01",
@@ -746,8 +757,8 @@ server <- function(input, output, session) {
           Fraction,
           levels = c("Sarco", "Purge"),
           labels = c(
-            "Sarcoplasmic Extract",
-            "Purge Extract"
+            "Low-Ionic Strength Soluble Protein Extract",
+            "Muscle Exudate Protein Extract"
           )
         ),
         ncol = 1
@@ -824,7 +835,7 @@ server <- function(input, output, session) {
     req(input$time_protein)
     selected_protein <- stringr::str_extract(input$time_protein, "(?<=: )\\w+$")
 
-    # Build data for Sarcoplasmic fraction
+    # Build data for Low-Ionic Strength fraction
     purge <- get_protein_data(
       all_total_peptides,
       "07",
@@ -876,8 +887,8 @@ server <- function(input, output, session) {
           Fraction,
           levels = c("Sarco", "Purge"),
           labels = c(
-            "Sarcoplasmic Extract",
-            "Purge Extract"
+            "Low-Ionic Strength Soluble Protein Extract",
+            "Muscle Exudate Protein Extract"
           )
         ),
         ncol = 1
@@ -954,7 +965,7 @@ server <- function(input, output, session) {
     req(input$time_protein)
     selected_protein <- stringr::str_extract(input$time_protein, "(?<=: )\\w+$")
 
-    # Build data for Sarcoplasmic fraction
+    # Build data for Low-Ionic Strength Soluble fraction
     purge <- get_protein_data(
       all_total_peptides,
       "14",
@@ -1006,8 +1017,8 @@ server <- function(input, output, session) {
           Fraction,
           levels = c("Sarco", "Purge"),
           labels = c(
-            "Sarcoplasmic Extract",
-            "Purge Extract"
+            "Low-Ionic Strength Soluble Protein Extract",
+            "Muscle Exudate Protein Extract"
           )
         ),
         ncol = 1
