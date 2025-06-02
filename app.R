@@ -150,7 +150,9 @@ time_sidebar <- bslib::sidebar(
 )
 
 ui <- bslib::page_fillable(
-  titlePanel("PepViewR: Visualization of Proteomic Data at the Peptide-Level"),
+  titlePanel(
+    "PepViewR: Tryptic Peptide Visualization from Proteomic Experiments"
+  ),
   theme = bslib::bs_theme(
     version = 5,
     bg = "#ffffff",
@@ -174,18 +176,64 @@ ui <- bslib::page_fillable(
 
       card(
         card_header("Motivation"),
-        "Bioinformatic tools help generate meaningful outputs of large datasets from genomic, transcriptomic, proteomic, metabolomic, and other types of omic-based methods.
-        The meat science research community has also employed these tools with samples of early and extended postmortem samples.
-        One could argue results from these tools are helpful for interpreting these results in meat science; however, many of these tools provide results and outputs that are uninformative and out of context, given the samples are in a postmortem context.
-        This work aimed to illustrate an alternative approach to visualizing and contextualizing results in meat science in a way that can be informative and useful for researchers and a broader audience."
+        card_body(
+          p(
+            "Bioinformatic tools help generate meaningful outputs of large datasets from genomic, transcriptomic, proteomic, metabolomic, and other types of omic-based methods.
+            These tools are almost exclusively trained and developed on data from living cellular systems.
+            The meat science research community has employed these tools to draw conclusions from postmortem skeletal muscle."
+          ),
+          p(
+            "One could argue that the outputs from bioinformatic tools are helpful for interpreting these results in meat science; however, many of these tools provide results and outputs that are uninformative, given the experimental samples were in a postmortem context.
+            This project and Shiny application aimed to illustrate an alternative approach that visualizes and contextualizes results from a meat science research experiment.
+            This is ultimately an effort to demonstrate the need for creative alternatives to out-of-the-box bioinformatic tools to draw conclusions from samples in a postmortem context."
+          )
+        )
       ),
-      card(
-        card_header("Experimental Background"),
-        "These proteomic data were generated from samples selected based on 1 day postmortem pH from a commercial pork plant (Jess et al., In Press).
-        The workflow diagram broadly illustrates the protein extraction methods used for this experiment.",
-        imageOutput("illustration", height = "auto"),
-        max_height = 400
-      ),
+      layout_columns(
+        card(
+          card_header("Experimental Background"),
+          card_body(
+            p(
+              "Pork loin samples (n = 50) were selected at 1 d postmortem from a commercial plant to be divertent in pH. A",
+              tags$a(
+                href = "https://www.iastatedigitalpress.com/mmb/article/id/18426/",
+                "recent paper (Jess et al., 2025)"
+              ),
+              "describes the collection and differences in meat quality and soluble desmin degradation products through Western blots.
+              A workflow diagram (right) broadly illustrates the protein extraction methods used for this experiment. 
+              More details are available in the",
+              tags$a(href = "", "abstract"),
+              "submitted to the Reciprocal Meat Conference.
+              Briefly, 2 separate proteomic experiments utilized the same population of pork loins at 1, 7, and 14 days postmortem. 
+              The two experiments utilized either:"
+            ),
+            tags$ol(
+              tags$li(
+                "Proteins from the muscle tissue soluble in a low-ionic strength buffer, and"
+              ),
+              tags$li(
+                "Proteins from the muscle exudate (purge)"
+              )
+            ),
+            p(
+              "Proteins were digest into tryptic peptides, labeled with Tandem Mass Tag 10plex reagents, and analyzed using a Q-Exactive Mass Spectrometer (Thermo Scientific), similar to prior work",
+              tags$a(
+                href = "https://academic.oup.com/jas/article/doi/10.1093/jas/skae355/7905115",
+                "Johnson et al., 2024)."
+              ),
+              "The .raw files were converted to .mzML and analyzed with FragPipe (v. 22.0) with a Sus scrofa UniProt reference .fasta file.
+              Data were summarized with MSstatsTMT (v. 2.14.2), and this Shiny app for viewing and interacting with the identified peptide data was developed in R Statistical Software (R Core Team, 2024)."
+            )
+          )
+        ),
+        card(
+          card_header("Workflow Diagram"),
+          card_body(
+            imageOutput("illustration", height = "auto"),
+            max_height = 400
+          )
+        ),
+      )
     ),
     # Protein Fraction Tab
     nav_panel(
@@ -362,7 +410,7 @@ server <- function(input, output, session) {
       list(
         src = "www/graphical_workflow.png",
         contentType = "image/png",
-        height = 200,
+        height = 300,
         alt = "Protein sample preparation graphic"
       )
     },
