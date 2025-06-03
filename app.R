@@ -1,10 +1,10 @@
-library(bslib)
-library(ggplot2)
-library(dplyr)
-library(nanoparquet)
-library(plotly)
-library(tidyr)
-library(shiny)
+library(bslib, quietly = TRUE)
+library(ggplot2, quietly = TRUE)
+library(dplyr, quietly = TRUE)
+library(nanoparquet, quietly = TRUE)
+library(plotly, quietly = TRUE)
+library(tidyr, quietly = TRUE)
+library(shiny, quietly = TRUE)
 
 # Read in the data
 purge_total_peptides <- nanoparquet::read_parquet(
