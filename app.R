@@ -408,7 +408,7 @@ server <- function(input, output, session) {
       list(
         src = "www/graphical_workflow.png",
         contentType = "image/png",
-        height = 300,
+        height = 350,
         alt = "Protein sample preparation graphic"
       )
     },
